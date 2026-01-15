@@ -4,13 +4,13 @@ const express = require("express");
 const { Telegraf } = require('telegraf');
 
 if (!process.env.ERRORBOT_TOKEN) {
-    throw new Error("ERRORBOT_TOKEN environment variable not set.");
+  throw new Error("ERRORBOT_TOKEN environment variable not set.");
 }
 if (!process.env.ERRORBOT_URL) {
-    throw new Error("ERRORBOT_URL environment variable not set.");
+  throw new Error("ERRORBOT_URL environment variable not set.");
 }
 if (!process.env.ERRORBOT_CHAT) {
-    throw new Error("ERRORBOT_CHAT environment variable not set.");
+  throw new Error("ERRORBOT_CHAT environment variable not set.");
 }
 
 const httpPort = 4000;
@@ -20,14 +20,58 @@ const token = process.env.ERRORBOT_TOKEN;
 const url = process.env.ERRORBOT_URL;
 const chat = process.env.ERRORBOT_CHAT;
 
+const Docker = require('dockerode');
+
 const bot = new Telegraf(token);
+
+const monitorDockerEvents = async () => {
+  try {
+    const docker = new Docker({ socketPath: '/var/run/docker.sock' });
+    // Check if we can talk to docker (e.g. is the socket mounted?)
+    await docker.ping();
+    console.log('[Docker] Connected to Docker socket');
+
+    const stream = await docker.getEvents({
+      filters: {
+        type: ['container'],
+        event: ['health_status']
+      }
+    });
+
+    stream.on('data', chunk => {
+      try {
+        const event = JSON.parse(chunk.toString());
+        // Action format example: "health_status: unhealthy"
+        if (event.Action.includes('unhealthy')) {
+          const containerName = event.Actor.Attributes.name || event.id.substring(0, 12);
+          console.log(`[Docker] Unhealthy container detected: ${containerName}`);
+          bot.telegram.sendMessage(chat, `⚠️ *Unhealthy Container Detected*\nName: \`${containerName}\`\nImage: \`${event.Actor.Attributes.image}\``, { parse_mode: 'Markdown' });
+        }
+      } catch (err) {
+        console.error('[Docker] Error processing event chunk', err);
+      }
+    });
+
+    stream.on('error', err => {
+      console.error('[Docker] Event stream error', err);
+    });
+
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {
+      console.log('[Docker] Docker socket not found or inaccessible. Monitoring disabled.');
+    } else {
+      console.error('[Docker] Failed to initialize monitoring', err);
+    }
+  }
+};
+
 const init = async () => {
   console.log('[Boot] Starting bot');
   bot.launch({ webhook: { domain: url, port: botPort } });
   console.log('[Boot] Bot ready on port ' + botPort);
+  monitorDockerEvents();
 }
 init();
-
 
 // html server
 const app = express();

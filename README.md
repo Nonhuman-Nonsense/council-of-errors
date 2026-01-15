@@ -1,6 +1,32 @@
 # Council of Errors
 
-A simple telegram error relay application, to monitor for errors in other applications.
+A Telegram relay bot for error messaging and system monitoring.
+
+## Features
+1.  **HTTP Relay**: Accepts POST requests and forwards the JSON body to a Telegram chat.
+2.  **Docker Monitor**: Listens to the local Docker engine for `health_status: unhealthy` events and automatically alerts when a container fails.
+
+## Configuration
+The application requires the following environment variables:
+
+-   `ERRORBOT_TOKEN`: Your Telegram Bot API Token.
+-   `ERRORBOT_CHAT`: The Chat ID to send messages to.
+-   `ERRORBOT_URL`: The public URL (used for Telegram Webhook).
+
+## Running with Docker
+To enable the Docker monitoring feature, you **must** mount the Docker socket into the container.
+
+```yaml
+services:
+  errorbot:
+    image: nonhumannonsense/council-of-errors:latest
+    environment:
+      - ERRORBOT_TOKEN=...
+      - ERRORBOT_CHAT=...
+      - ERRORBOT_URL=...
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
 
 ## Build docker image
 
