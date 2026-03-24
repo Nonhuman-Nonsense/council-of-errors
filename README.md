@@ -30,8 +30,8 @@ Optional:
 
 On services that report errors (for example on another droplet):
 
-- `COUNCIL_ERRORBOT=https://error.<your-domain>/ingest`
-- `COUNCIL_ERRORBOT_KEY=<same value as ERRORBOT_INGEST_KEY>`
+- `ERRORBOT=https://error.<your-domain>/ingest`
+- `ERRORBOT_KEY=<same value as ERRORBOT_INGEST_KEY>`
 
 ## Running with Docker
 
@@ -40,7 +40,7 @@ Minimal setup:
 ```yaml
 services:
   errorbot:
-    image: nonhumannonsense/council-of-errors:latest
+    image: nonhumannonsense/errorbot:latest
     environment:
       - ERRORBOT_TOKEN=...
       - ERRORBOT_CHAT=...
@@ -58,8 +58,8 @@ volumes:
 ## Build Docker image
 
 ```bash
-docker build . -t nonhumannonsense/council-of-errors:latest
-docker push nonhumannonsense/council-of-errors:latest
+docker build . -t nonhumannonsense/errorbot:latest
+docker push nonhumannonsense/errorbot:latest
 ```
 
 On Apple Silicon, you may need `--platform linux/amd64` in the build command.
