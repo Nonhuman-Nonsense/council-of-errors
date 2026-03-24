@@ -19,6 +19,7 @@ const botPort = 4001;
 const token = process.env.ERRORBOT_TOKEN;
 const url = process.env.ERRORBOT_URL;
 const chat = process.env.ERRORBOT_CHAT;
+const ingestKey = process.env.ERRORBOT_INGEST_KEY;
 
 const Docker = require('dockerode');
 
@@ -77,7 +78,18 @@ init();
 const app = express();
 app.use(express.json());
 
-app.post('/', (req, res) => {
+const verifyIngestAuth = (req, res, next) => {
+  if (!ingestKey) {
+    return next();
+  }
+  const providedKey = req.get('X-Errorbot-Key');
+  if (!providedKey || providedKey !== ingestKey) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  return next();
+};
+
+const handleIngest = (req, res) => {
   //Reply to the http request to close it
   res.send("OK");
 
@@ -86,7 +98,15 @@ app.post('/', (req, res) => {
 
   //Relay to admin chat
   bot.telegram.sendMessage(chat, JSON.stringify(req.body));
-})
+};
+
+// Keep both routes to avoid breaking old clients.
+app.post('/', verifyIngestAuth, handleIngest);
+app.post('/ingest', verifyIngestAuth, handleIngest);
+
+app.get('/health', (_, res) => {
+  res.json({ ok: true, environment });
+});
 
 app.listen(httpPort, () => {
   console.log('[Boot] Listening for http on port ' + httpPort);
