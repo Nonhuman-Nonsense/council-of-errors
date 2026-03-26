@@ -1,13 +1,12 @@
 {
-  "name": "errorbot",
+  "name": "error-bot",
   "version": "1.0.0",
   "description": "A telegram relay bot for error messaging",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon server.js --ignore local_db.json",
-    "docker": "docker build . -t nonhumannonsense/errorbot:latest --platform linux/amd64",
-    "push": "docker push nonhumannonsense/errorbot:latest"
+    "docker": "docker build . -t nonhumannonsense/error-bot:latest --platform linux/amd64",
+    "push": "docker push nonhumannonsense/error-bot:latest"
   },
   "author": "Nonhuman Nonsense",
   "license": "ISC",
