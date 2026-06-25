@@ -33,6 +33,28 @@ On services that report errors (for example on another droplet):
 - `ERRORBOT=https://error.<your-domain>/ingest`
 - `ERRORBOT_KEY=<same value as ERRORBOT_INGEST_KEY>`
 
+Council uses `COUNCIL_ERRORBOT` and `COUNCIL_ERRORBOT_KEY` for the same ingest endpoint and key.
+
+## Ingest payload (formatted for Telegram)
+
+Ingest bodies are rendered as HTML Telegram messages. Recommended fields:
+
+| Field | Values | Purpose |
+|-------|--------|---------|
+| `service` | e.g. `council-prod` | Which deployment |
+| `severity` | `warning`, `error`, `critical` | Primary severity (preferred) |
+| `level` | `WARNING`, `ERROR`, `CRITICAL` | Legacy uppercase severity |
+| `clientImpact` | `none`, `notified`, `terminal`, `process_exit` | User / process impact |
+| `source` | `server`, `client` | Where the report originated |
+| `context` | free text | e.g. `meeting 42`, `AudioSystem` |
+| `message` | free text | Human summary; `[CLIENT TERMINAL]` prefix inferred when `clientImpact` omitted |
+| `time` | ISO timestamp | When it happened |
+| `error` | `{ name, message, stack }` | Optional stack block |
+
+Legacy payloads with only `level` and `message` still render; terminal impact is inferred from `[CLIENT TERMINAL]` or `[PROCESS EXIT]` in `message`.
+
+If HTML formatting fails, the bot falls back to `JSON.stringify(body)`.
+
 ## Running with Docker
 
 Minimal setup:

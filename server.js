@@ -28,6 +28,95 @@ const Docker = require('dockerode');
 
 const bot = new Telegraf(token);
 
+const TELEGRAM_MAX = 4096;
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function normalizeSeverity(body) {
+  const raw = (body.severity ?? body.level ?? 'unknown').toString().toLowerCase();
+  if (raw === 'warning' || raw === 'warn') return 'warning';
+  if (raw === 'critical' || raw === 'fatal') return 'critical';
+  if (raw === 'error') return 'error';
+  return 'unknown';
+}
+
+function inferClientImpact(body) {
+  if (body.clientImpact) return body.clientImpact;
+  const message = typeof body.message === 'string' ? body.message : '';
+  if (message.includes('[CLIENT TERMINAL]')) return 'terminal';
+  if (message.includes('[PROCESS EXIT]')) return 'process_exit';
+  return undefined;
+}
+
+function impactLabel(impact) {
+  if (impact === 'terminal') return '🛑 <b>Client session ended</b>';
+  if (impact === 'process_exit') return '☠️ <b>Process exited</b>';
+  if (impact === 'notified') return '📣 Client notified';
+  return undefined;
+}
+
+function formatErrorBlock(error) {
+  if (!error || typeof error !== 'object') return undefined;
+  const stack = error.stack || error.message;
+  if (!stack) return undefined;
+  return escapeHtml(String(stack));
+}
+
+/**
+ * Render an ingest JSON body as a readable Telegram HTML message.
+ */
+function formatReport(body) {
+  const severity = normalizeSeverity(body);
+  const emoji = {
+    warning: '⚠️',
+    error: '🔴',
+    critical: '💀',
+    unknown: '❓',
+  }[severity] ?? '❓';
+
+  const service = body.service ?? 'unknown';
+  const source = body.source ?? 'server';
+  const impact = inferClientImpact(body);
+
+  const lines = [
+    `${emoji} <b>${severity.toUpperCase()}</b> · <code>${escapeHtml(service)}</code> · ${escapeHtml(source)}`,
+  ];
+
+  const impactLine = impactLabel(impact);
+  if (impactLine) lines.push(impactLine);
+
+  if (body.context) {
+    lines.push(`<b>Context:</b> <code>${escapeHtml(body.context)}</code>`);
+  }
+
+  if (body.message) {
+    lines.push('');
+    lines.push(escapeHtml(body.message));
+  }
+
+  const errorBlock = formatErrorBlock(body.error);
+  if (errorBlock) {
+    lines.push('');
+    lines.push(`<pre>${errorBlock.slice(0, 2800)}</pre>`);
+  }
+
+  if (body.time) {
+    lines.push('');
+    lines.push(`<i>${escapeHtml(body.time)}</i>`);
+  }
+
+  let text = lines.join('\n');
+  if (text.length > TELEGRAM_MAX) {
+    text = `${text.slice(0, TELEGRAM_MAX - 20)}\n… [truncated]`;
+  }
+  return text;
+}
+
 const monitorDockerEvents = async () => {
   try {
     const docker = new Docker({ socketPath: '/var/run/docker.sock' });
@@ -74,12 +163,7 @@ const init = async () => {
   bot.launch({ webhook: { domain: url, port: botPort } });
   console.log('[Boot] Bot ready on port ' + botPort);
   monitorDockerEvents();
-}
-init();
-
-// html server
-const app = express();
-app.use(express.json());
+};
 
 const verifyIngestAuth = (req, res, next) => {
   if (!ingestKey) {
@@ -100,8 +184,16 @@ const handleIngest = (req, res) => {
   console.log(req.body);
 
   //Relay to admin chat
-  bot.telegram.sendMessage(chat, JSON.stringify(req.body));
+  const text = formatReport(req.body);
+  bot.telegram.sendMessage(chat, text, { parse_mode: 'HTML' }).catch(err => {
+    console.error('[Ingest] Failed to send formatted Telegram message, falling back to JSON', err);
+    bot.telegram.sendMessage(chat, JSON.stringify(req.body));
+  });
 };
+
+// html server
+const app = express();
+app.use(express.json());
 
 // Keep both routes to avoid breaking old clients.
 app.post('/', verifyIngestAuth, handleIngest);
@@ -111,9 +203,12 @@ app.get('/health', (_, res) => {
   res.json({ ok: true, environment });
 });
 
-app.listen(httpPort, () => {
-  console.log('[Boot] Listening for http on port ' + httpPort);
-})
+if (require.main === module) {
+  init();
+  app.listen(httpPort, () => {
+    console.log('[Boot] Listening for http on port ' + httpPort);
+  });
+}
 
 process.on('SIGTERM', () => {
   console.log('[Shutdown] SIGTERM shutdown');
@@ -123,3 +218,5 @@ process.on('SIGINT', () => {
   console.log('[Shutdown] SIGINT shutdown');
   process.exit(1)
 });
+
+module.exports = { formatReport, escapeHtml, normalizeSeverity };
