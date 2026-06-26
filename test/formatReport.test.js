@@ -9,17 +9,19 @@ process.env.ERRORBOT_CHAT = 'test-chat';
 const { formatReport } = require('../server.js');
 
 describe('formatReport', () => {
-  it('renders legacy council payloads with inferred terminal impact', () => {
+  it('renders critical terminal council reports', () => {
     const text = formatReport({
       service: 'council-dev',
-      level: 'ERROR',
+      severity: 'critical',
+      clientImpact: 'terminal',
+      source: 'server',
       context: 'AudioSystem',
       message: '[CLIENT TERMINAL] Error generating audio',
       time: '2026-06-17T12:00:00.000Z',
       error: { name: 'TypeError', message: 'boom', stack: 'TypeError: boom\n    at AudioSystem.ts:1' },
     });
 
-    assert.match(text, /🔴.*ERROR/s);
+    assert.match(text, /💀.*CRITICAL/s);
     assert.match(text, /Client session ended/);
     assert.match(text, /AudioSystem/);
     assert.match(text, /Error generating audio/);
@@ -42,9 +44,21 @@ describe('formatReport', () => {
     assert.match(text, /meeting 42/);
   });
 
+  it('omits impact line when clientImpact is none', () => {
+    const text = formatReport({
+      severity: 'error',
+      clientImpact: 'none',
+      message: 'Database insert failed',
+    });
+
+    assert.match(text, /🔴.*ERROR/s);
+    assert.doesNotMatch(text, /Client session ended/);
+    assert.doesNotMatch(text, /Client notified/);
+  });
+
   it('escapes html in user-controlled message text', () => {
     const text = formatReport({
-      level: 'ERROR',
+      severity: 'error',
       message: '<script>alert(1)</script>',
     });
 

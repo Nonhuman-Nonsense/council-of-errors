@@ -38,19 +38,11 @@ function escapeHtml(value) {
 }
 
 function normalizeSeverity(body) {
-  const raw = (body.severity ?? body.level ?? 'unknown').toString().toLowerCase();
-  if (raw === 'warning' || raw === 'warn') return 'warning';
-  if (raw === 'critical' || raw === 'fatal') return 'critical';
+  const raw = (body.severity ?? 'unknown').toString().toLowerCase();
+  if (raw === 'warning') return 'warning';
+  if (raw === 'critical') return 'critical';
   if (raw === 'error') return 'error';
   return 'unknown';
-}
-
-function inferClientImpact(body) {
-  if (body.clientImpact) return body.clientImpact;
-  const message = typeof body.message === 'string' ? body.message : '';
-  if (message.includes('[CLIENT TERMINAL]')) return 'terminal';
-  if (message.includes('[PROCESS EXIT]')) return 'process_exit';
-  return undefined;
 }
 
 function impactLabel(impact) {
@@ -81,14 +73,16 @@ function formatReport(body) {
 
   const service = body.service ?? 'unknown';
   const source = body.source ?? 'server';
-  const impact = inferClientImpact(body);
+  const impact = body.clientImpact;
 
   const lines = [
     `${emoji} <b>${severity.toUpperCase()}</b> · <code>${escapeHtml(service)}</code> · ${escapeHtml(source)}`,
   ];
 
-  const impactLine = impactLabel(impact);
-  if (impactLine) lines.push(impactLine);
+  if (impact && impact !== 'none') {
+    const impactLine = impactLabel(impact);
+    if (impactLine) lines.push(impactLine);
+  }
 
   if (body.context) {
     lines.push(`<b>Context:</b> <code>${escapeHtml(body.context)}</code>`);
