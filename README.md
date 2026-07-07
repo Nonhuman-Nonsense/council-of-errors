@@ -49,6 +49,10 @@ Ingest bodies are rendered as HTML Telegram messages. Required / recommended fie
 | `message` | free text | Human summary |
 | `time` | ISO timestamp | When it happened |
 | `error` | `{ name, message, stack }` | Optional stack block |
+| `meetingId` | number (optional) | Council meeting id, when known |
+| `socketId` | string (optional) | Socket.io session id, when known |
+
+When `meetingId` and/or `socketId` are present, they appear on one compact line below the severity header (e.g. `meeting 42 · socket Kx9mP2aL`). Omitted entirely when neither is sent.
 
 If HTML formatting fails, the bot falls back to `JSON.stringify(body)`.
 

@@ -56,6 +56,46 @@ describe('formatReport', () => {
     assert.doesNotMatch(text, /Client notified/);
   });
 
+  it('renders meeting and socket ids when present', () => {
+    const text = formatReport({
+      service: 'council-dev',
+      severity: 'error',
+      clientImpact: 'terminal',
+      source: 'server',
+      context: 'meeting',
+      message: 'Conversation process error',
+      meetingId: 42,
+      socketId: 'Kx9mP2aL',
+      time: '2026-06-17T12:00:00.000Z',
+    });
+
+    assert.match(text, /meeting <code>42<\/code>/);
+    assert.match(text, /socket <code>Kx9mP2aL<\/code>/);
+  });
+
+  it('omits session line when meetingId and socketId are absent', () => {
+    const text = formatReport({
+      severity: 'error',
+      context: 'api',
+      message: 'Database insert failed',
+    });
+
+    assert.doesNotMatch(text, /meeting <code>/);
+    assert.doesNotMatch(text, /socket <code>/);
+  });
+
+  it('renders only meetingId when socketId is absent', () => {
+    const text = formatReport({
+      severity: 'critical',
+      source: 'client',
+      meetingId: 7,
+      message: 'Client terminal error',
+    });
+
+    assert.match(text, /meeting <code>7<\/code>/);
+    assert.doesNotMatch(text, /socket <code>/);
+  });
+
   it('escapes html in user-controlled message text', () => {
     const text = formatReport({
       severity: 'error',

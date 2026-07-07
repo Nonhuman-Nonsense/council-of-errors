@@ -79,6 +79,17 @@ function formatReport(body) {
     `${emoji} <b>${severity.toUpperCase()}</b> · <code>${escapeHtml(service)}</code> · ${escapeHtml(source)}`,
   ];
 
+  const sessionParts = [];
+  if (body.meetingId != null && body.meetingId !== '') {
+    sessionParts.push(`meeting <code>${escapeHtml(body.meetingId)}</code>`);
+  }
+  if (body.socketId) {
+    sessionParts.push(`socket <code>${escapeHtml(body.socketId)}</code>`);
+  }
+  if (sessionParts.length) {
+    lines.push(sessionParts.join(' · '));
+  }
+
   if (impact && impact !== 'none') {
     const impactLine = impactLabel(impact);
     if (impactLine) lines.push(impactLine);
