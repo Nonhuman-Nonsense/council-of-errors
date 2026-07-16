@@ -105,4 +105,27 @@ describe('formatReport', () => {
     assert.doesNotMatch(text, /<script>/);
     assert.match(text, /&lt;script&gt;/);
   });
+
+  it('renders requestParams when present', () => {
+    const text = formatReport({
+      severity: 'warning',
+      context: 'api GET /api/meetings/:meetingId',
+      message: 'GET /api/meetings/1228 failed, Bad request',
+      requestParams: { params: { meetingId: '1228' }, query: {} },
+    });
+
+    assert.match(text, /<b>Request:<\/b>/);
+    assert.match(text, /params=\{"meetingId":"1228"\}/);
+    assert.doesNotMatch(text, /query=/);
+  });
+
+  it('omits the request line when requestParams is absent or empty', () => {
+    const text = formatReport({
+      severity: 'warning',
+      message: 'Database insert failed',
+      requestParams: { params: {}, query: {} },
+    });
+
+    assert.doesNotMatch(text, /<b>Request:<\/b>/);
+  });
 });

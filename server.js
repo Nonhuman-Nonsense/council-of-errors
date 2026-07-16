@@ -59,6 +59,21 @@ function formatErrorBlock(error) {
   return escapeHtml(String(stack));
 }
 
+/** Raw request params/query from the API layer, e.g. `{ params: { meetingId: "1228" }, query: {} }`. */
+function formatRequestParams(requestParams) {
+  if (!requestParams || typeof requestParams !== 'object') return undefined;
+  const { params, query } = requestParams;
+  const parts = [];
+  if (params && typeof params === 'object' && Object.keys(params).length > 0) {
+    parts.push(`params=${JSON.stringify(params)}`);
+  }
+  if (query && typeof query === 'object' && Object.keys(query).length > 0) {
+    parts.push(`query=${JSON.stringify(query)}`);
+  }
+  if (parts.length === 0) return undefined;
+  return escapeHtml(parts.join(' '));
+}
+
 /**
  * Render an ingest JSON body as a readable Telegram HTML message.
  */
@@ -97,6 +112,11 @@ function formatReport(body) {
 
   if (body.context) {
     lines.push(`<b>Context:</b> <code>${escapeHtml(body.context)}</code>`);
+  }
+
+  const requestParamsLine = formatRequestParams(body.requestParams);
+  if (requestParamsLine) {
+    lines.push(`<b>Request:</b> <code>${requestParamsLine}</code>`);
   }
 
   if (body.message) {
